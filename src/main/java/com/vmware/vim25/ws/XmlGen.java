@@ -41,6 +41,9 @@ import org.doublecloud.ws.util.TypeUtil;
 import org.doublecloud.ws.util.XmlUtil;
 
 import com.vmware.vim25.ManagedObjectReference;
+import org.slf4j.MDC; // This is needed for OperationID support.
+import java.lang.Integer;
+import java.util.concurrent.ThreadLocalRandom;
 
 public abstract class XmlGen
 {
@@ -50,9 +53,29 @@ public abstract class XmlGen
   {
     StringBuffer sb = new StringBuffer();
     sb.append(SoapConsts.SOAP_HEADER);
+    /*
+     * Operation ID's are useful to trace the life of a request from the client
+     * to vCenter to ESX host. Log4j package can also be setup to log
+     * these ID's in the client logs (Various VMware servers, including
+     * vpxd, hostd, vpxa, already log these ID's).
+     */
+
+    // If one is already set, use it.
+    String opId = MDC.get("opId");
+
+    // If not, generate one.
+    if (opId == null) {
+      int ri = ThreadLocalRandom.current().nextInt(0, Integer.MAX_VALUE);
+      opId = "ViJava-" + Integer.toHexString(ri);
+      MDC.put("opId", opId);
+    }
+    sb.append("<soapenv:Header><operationID>" + opId +
+              "</operationID></soapenv:Header>");
+
+    sb.append(SoapConsts.SOAP_BODY);
 
     sb.append("<" + methodName + vimNameSpace);
-    
+
     for(int i=0; i<paras.length; i++)
     {
       String key = paras[i].getName();
